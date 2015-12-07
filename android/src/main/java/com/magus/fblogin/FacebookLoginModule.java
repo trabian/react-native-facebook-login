@@ -236,6 +236,23 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         }
     }
 
+    @ReactMethod
+    public void getCurrentAccessToken(final Callback callback) {
+        AccessToken currentAccessToken = AccessToken.getCurrentAccessToken();
+        if(currentAccessToken != null){
+
+            WritableMap map = Arguments.createMap();
+
+            map.putString("tokenString", currentAccessToken.getToken());
+            map.putString("userID", currentAccessToken.getUserId());
+            
+            callback.invoke(map);
+            
+        }else{
+            callback.invoke(null);
+        }
+    }
+
     public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
         return mCallbackManager.onActivityResult(requestCode, resultCode, data);
     }
