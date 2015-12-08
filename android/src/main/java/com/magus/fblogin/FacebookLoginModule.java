@@ -238,9 +238,11 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void getCurrentAccessToken(final Callback callback) {
+        
         AccessToken currentAccessToken = AccessToken.getCurrentAccessToken();
-        if(currentAccessToken != null){
-
+        
+        if (currentAccessToken != null) {
+        
             WritableMap map = Arguments.createMap();
 
             map.putString("tokenString", currentAccessToken.getToken());
@@ -248,8 +250,8 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
             
             callback.invoke(map);
             
-        }else{
-            callback.invoke(null);
+        } else {
+            callback.invoke();
         }
     }
 
