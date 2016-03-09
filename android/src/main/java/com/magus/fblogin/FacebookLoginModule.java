@@ -14,6 +14,7 @@ import com.facebook.FacebookRequestError;
 import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
+import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.facebook.react.bridge.Arguments;
@@ -22,6 +23,8 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
@@ -33,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
     private final String CALLBACK_TYPE_SUCCESS = "success";
@@ -43,6 +48,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     private CallbackManager mCallbackManager;
     private Callback mTokenCallback;
     private Callback mLogoutCallback;
+    private AppEventsLogger mEventsLogger;
 
     public FacebookLoginModule(ReactApplicationContext reactContext, Context activityContext) {
         super(reactContext);
@@ -50,6 +56,8 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         mActivityContext = activityContext;
 
         FacebookSdk.sdkInitialize(activityContext.getApplicationContext());
+        
+        mEventsLogger = AppEventsLogger.newLogger((Activity) activityContext);
 
         mCallbackManager = CallbackManager.Factory.create();
 
@@ -253,6 +261,54 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         } else {
             callback.invoke();
         }
+    }
+
+    // Not sure why Arguments.toBundle didn't work directly.
+    public Bundle toBundle(@Nullable ReadableMap readableMap) {
+        if (readableMap == null) {
+            return null;
+        }
+
+        ReadableMapKeySetIterator iterator = readableMap.keySetIterator();
+        if (!iterator.hasNextKey()) {
+            return null;
+        }
+
+        Bundle bundle = new Bundle();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            ReadableType readableType = readableMap.getType(key);
+            switch (readableType) {
+            case Null:
+                bundle.putString(key, null);
+                break;
+            case Boolean:
+                bundle.putBoolean(key, readableMap.getBoolean(key));
+                break;
+            case Number:
+                // Can be int or double.
+                bundle.putDouble(key, readableMap.getDouble(key));
+                break;
+            case String:
+                bundle.putString(key, readableMap.getString(key));
+                break;
+            case Map:
+                bundle.putBundle(key, toBundle(readableMap.getMap(key)));
+                break;
+            case Array:
+                // TODO t8873322
+                throw new UnsupportedOperationException("Arrays aren't supported yet.");
+            default:
+                throw new IllegalArgumentException("Could not convert object with key: " + key + ".");
+            }
+        }
+
+        return bundle;
+    }    
+
+    @ReactMethod
+    public void logEvent(final String eventName, final double valueToSum, final ReadableMap parameters, final ReadableMap token) {
+        mEventsLogger.logEvent(eventName, valueToSum, toBundle(parameters));
     }
 
     public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
